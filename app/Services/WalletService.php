@@ -42,7 +42,7 @@ class WalletService
             ]);
 
             if ($wallet->balance + $amount < 0) {
-                throw new InsufficientFundsException("Insufficient funds");
+                throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
             }
 
             $wallet->balance += $amount;
