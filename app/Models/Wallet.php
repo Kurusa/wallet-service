@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $user_id
  * @property int $currency_id
- * @property float $balance
+ * @property int $balance
  * @property boolean $is_technical
  * @property string $wallet_type
  * @property Carbon|null $created_at
@@ -54,7 +54,7 @@ class Wallet extends Model
             ->orWhere('to_wallet_id', $this->id);
     }
 
-    public static function findOrCreateTechnicalWallet(int $currencyId, string $type)
+    public static function findOrCreateTechnicalWallet(int $currencyId, string $type): Wallet
     {
         return static::firstOrCreate([
             'user_id' => User::getTechnicalUser()->id,

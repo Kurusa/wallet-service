@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('currency_id')->constrained();
-            $table->decimal('balance', 15);
+            $table->bigInteger('balance')->default(0);
             $table->boolean('is_technical')->default(false);
             $table->string('wallet_type')->default('normal');
             $table->timestamps();
