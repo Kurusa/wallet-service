@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\DTO\WalletBalanceDTO;
@@ -18,56 +20,75 @@ class WalletService
     public function getBalance(User $user, Currency $currency): float
     {
         $cacheKey = $this->getCacheKey($user, $currency);
-
         return Cache::remember($cacheKey, self::DEFAULT_TTL, function () use ($user, $currency) {
-            return $user->wallets()->where('currency_id', $currency->id)->first()->balance ?? 0;
+            return $user->wallets()->where('currency_id', $currency->id)->first()?->balance ?? 0;
         });
     }
 
     public function getAllBalances(User $user)
     {
-        return $user->wallets()->with('currency')->get()->mapWithKeys(function (Wallet $wallet) {
+        return $user->wallets()->with('currency')->get()->map(function (Wallet $wallet) {
             return new WalletBalanceDTO($wallet->currency->code, $wallet->balance);
         });
     }
 
     public function updateBalance(User $user, Currency $currency, int $amount, string $clientTxId): Wallet
     {
-        return DB::transaction(function () use ($user, $currency, $amount, $clientTxId) {
-            $wallet = $user->wallets()->lockForUpdate()->firstOrCreate([
-                'currency_id' => $currency->id,
-                'is_technical' => false,
-            ], [
-                'balance' => 0
-            ]);
+        $lock = Cache::lock('updateBalance:' . $clientTxId, 10);
 
-            if ($wallet->balance + $amount < 0) {
-                throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
+        if ($lock->get()) {
+            try {
+                return DB::transaction(function () use ($user, $currency, $amount, $clientTxId, $lock) {
+                    $wallet = $user->wallets()->firstOrCreate([
+                        'currency_id' => $currency->id,
+                        'is_technical' => false,
+                    ], [
+                        'balance' => 0
+                    ]);
+
+                    if ($wallet->balance + $amount < 0) {
+                        throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
+                    }
+
+                    $wallet->balance += $amount;
+                    $wallet->save();
+
+                    Cache::forget($this->getCacheKey($user, $currency));
+
+                    return $wallet;
+                });
+            } finally {
+                $lock->release();
             }
-
-            $wallet->balance += $amount;
-            $wallet->save();
-
-            Cache::forget($this->getCacheKey($user, $currency));
-
-            return $wallet;
-        });
+        } else {
+            throw new \Exception("Unable to get lock for transaction: {$clientTxId}");
+        }
     }
 
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount, string $clientTxId): void
     {
-        DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
-            $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
-            $this->updateBalance($toUser, $currency, $amount, $clientTxId);
+        $lock = Cache::lock('transfer:' . $clientTxId, 10);
 
-            $techWalletDebit = Wallet::findOrCreateTechnicalWallet($currency->id, 'debit');
-            $techWalletCredit = Wallet::findOrCreateTechnicalWallet($currency->id, 'credit');
+        if ($lock->get()) {
+            try {
+                DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
+                    $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
+                    $this->updateBalance($toUser, $currency, $amount, $clientTxId);
 
-            $this->updateBalance($techWalletDebit->user, $currency, $amount, $clientTxId);
-            $this->updateBalance($techWalletCredit->user, $currency, -$amount, $clientTxId);
+                    $techWalletDebit = Wallet::findOrCreateTechnicalWallet($currency->id, 'debit');
+                    $techWalletCredit = Wallet::findOrCreateTechnicalWallet($currency->id, 'credit');
 
-            $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
-        });
+                    $this->updateBalance($techWalletDebit->user, $currency, $amount, $clientTxId);
+                    $this->updateBalance($techWalletCredit->user, $currency, -$amount, $clientTxId);
+
+                    $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
+                });
+            } finally {
+                $lock->release();
+            }
+        } else {
+            throw new \Exception("Unable to acquire lock for transaction: {$clientTxId}");
+        }
     }
 
     public function getCacheKey(User $user, Currency $currency): string

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
+use App\DTO\WalletBalanceDTO;
 use App\Exceptions\InsufficientFundsException;
 use Tests\TestCase;
 use App\Services\WalletService;
@@ -30,34 +33,40 @@ class WalletServiceTest extends TestCase
         Wallet::factory()->create([
             'user_id' => $user->id,
             'currency_id' => $currency->id,
-            'balance' => 100.00
+            'balance' => 100,
         ]);
 
         $balance = $this->walletService->getBalance($user, $currency);
-        $this->assertEquals(100.00, $balance);
+        $this->assertEquals(100, $balance);
     }
 
     public function testGetAllBalances()
     {
         $user = User::factory()->create();
-        $currencyOne = Currency::factory()->create();
-        $currencyTwo = Currency::factory()->create();
+        $currencyOne = Currency::factory()->create(['code' => 'USD']);
+        $currencyTwo = Currency::factory()->create(['code' => 'EUR']);
         Wallet::factory()->create([
             'user_id' => $user->id,
             'currency_id' => $currencyOne->id,
-            'balance' => 50.00
+            'balance' => 50,
         ]);
         Wallet::factory()->create([
             'user_id' => $user->id,
             'currency_id' => $currencyTwo->id,
-            'balance' => 150.00
+            'balance' => 150,
         ]);
 
         $balances = $this->walletService->getAllBalances($user);
-        $this->assertEquals([
-            $currencyOne->code => 50.00,
-            $currencyTwo->code => 150.00
-        ], $balances->toArray());
+
+        $this->assertCount(2, $balances);
+
+        $this->assertTrue($balances->contains(function (WalletBalanceDTO  $dto) {
+            return $dto->currencyCode == 'USD' && $dto->balance == 50;
+        }));
+
+        $this->assertTrue($balances->contains(function (WalletBalanceDTO $dto) {
+            return $dto->currencyCode == 'EUR' && $dto->balance == 150;
+        }));
     }
 
     public function testUpdateBalance()
@@ -67,11 +76,11 @@ class WalletServiceTest extends TestCase
         Wallet::factory()->create([
             'user_id' => $user->id,
             'currency_id' => $currency->id,
-            'balance' => 0
+            'balance' => 0,
         ]);
 
-        $updatedWallet = $this->walletService->updateBalance($user, $currency, 100.00, 'tx123');
-        $this->assertEquals(100.00, $updatedWallet->balance);
+        $updatedWallet = $this->walletService->updateBalance($user, $currency, 100, 'tx123');
+        $this->assertEquals(100, $updatedWallet->balance);
     }
 
     public function testTransfer()
@@ -82,12 +91,12 @@ class WalletServiceTest extends TestCase
         $fromWallet = Wallet::factory()->create([
             'user_id' => $fromUser->id,
             'currency_id' => $currency->id,
-            'balance' => 100
+            'balance' => 100,
         ]);
         $toWallet = Wallet::factory()->create([
             'user_id' => $toUser->id,
             'currency_id' => $currency->id,
-            'balance' => 0
+            'balance' => 0,
         ]);
 
         $this->walletService->transfer($fromUser, $toUser, $currency, 50, 'tx124');
@@ -108,12 +117,12 @@ class WalletServiceTest extends TestCase
         $fromWallet = Wallet::factory()->create([
             'user_id' => $fromUser->id,
             'currency_id' => $currency->id,
-            'balance' => $balanceAmount
+            'balance' => $balanceAmount,
         ]);
         $toWallet = Wallet::factory()->create([
             'user_id' => $toUser->id,
             'currency_id' => $currency->id,
-            'balance' => 0
+            'balance' => 0,
         ]);
 
         $this->walletService->transfer($fromUser, $toUser, $currency, $balanceAmount, 'tx125');
@@ -136,7 +145,7 @@ class WalletServiceTest extends TestCase
         Wallet::factory()->create([
             'user_id' => $fromUser->id,
             'currency_id' => $currency->id,
-            'balance' => 0
+            'balance' => 0,
         ]);
         Wallet::factory()->create([
             'user_id' => $toUser->id,
@@ -159,12 +168,12 @@ class WalletServiceTest extends TestCase
         Wallet::factory()->create([
             'user_id' => $fromUser->id,
             'currency_id' => $currency->id,
-            'balance' => $initialBalance
+            'balance' => $initialBalance,
         ]);
         Wallet::factory()->create([
             'user_id' => $toUser->id,
             'currency_id' => $currency->id,
-            'balance' => 0
+            'balance' => 0,
         ]);
 
         $this->walletService->transfer($fromUser, $toUser, $currency, 50, 'tx127');
