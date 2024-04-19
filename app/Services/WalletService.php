@@ -54,7 +54,7 @@ class WalletService
      */
     public function updateBalance(User $user, Currency $currency, int $amount, string $clientTxId): Wallet
     {
-        $lock = Cache::lock('updateBalance:' . $clientTxId, 10);
+        $lock = Cache::lock($this->getLockKey($user, $currency), 10);
 
         if ($lock->get()) {
             try {
@@ -96,9 +96,10 @@ class WalletService
      */
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount, string $clientTxId): void
     {
-        $lock = Cache::lock('transfer:' . $clientTxId, 10);
+        $fromLock = Cache::lock($this->getLockKey($fromUser, $currency), 10);
+        $toLock = Cache::lock($this->getLockKey($toUser, $currency), 10);
 
-        if ($lock->get()) {
+        if ($fromLock->get() && $toLock->get()) {
             try {
                 DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
                     $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
@@ -113,7 +114,8 @@ class WalletService
                     $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
                 });
             } finally {
-                $lock->release();
+                $fromLock->release();
+                $toLock->release();
             }
         } else {
             throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
@@ -128,6 +130,16 @@ class WalletService
     public function getCacheKey(User $user, Currency $currency): string
     {
         return "balance:user_{$user->id}:currency_{$currency->id}";
+    }
+
+    /**
+     * @param User $user
+     * @param Currency $currency
+     * @return string
+     */
+    public function getLockKey(User $user, Currency $currency): string
+    {
+        return "walletLock:user_{$user->id}:currency_{$currency->id}";
     }
 
     /**
