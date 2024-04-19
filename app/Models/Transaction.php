@@ -16,7 +16,6 @@ use Illuminate\Support\Carbon;
  * @property int $from_wallet_id
  * @property int $to_wallet_id
  * @property int $amount
- * @property string $client_tx_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
@@ -31,7 +30,6 @@ class Transaction extends Model
         'from_wallet_id',
         'to_wallet_id',
         'amount',
-        'client_tx_id',
     ];
 
     /**

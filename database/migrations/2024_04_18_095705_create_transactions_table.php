@@ -13,7 +13,6 @@ return new class extends Migration
             $table->foreignId('from_wallet_id')->constrained('wallets')->onDelete('cascade');
             $table->foreignId('to_wallet_id')->constrained('wallets')->onDelete('cascade');
             $table->bigInteger('amount');
-            $table->string('client_tx_id')->index()->unique();
             $table->timestamps();
         });
     }
