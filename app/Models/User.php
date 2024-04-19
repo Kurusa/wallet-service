@@ -35,7 +35,7 @@ class User extends Authenticatable
         return $this->hasMany(Wallet::class);
     }
 
-    public static function getTechnicalUser()
+    public static function getTechnicalUser(): User
     {
         return static::firstOrCreate([
             'email' => 'technical@example.com'
