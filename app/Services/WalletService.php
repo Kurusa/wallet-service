@@ -48,20 +48,19 @@ class WalletService
      * @param User $user
      * @param Currency $currency
      * @param int $amount
-     * @param string $clientTxId
      * @return Wallet
      * @throws LockAcquisitionException
      */
-    public function updateBalance(User $user, Currency $currency, int $amount, string $clientTxId): Wallet
+    public function updateBalance(User $user, Currency $currency, int $amount): Wallet
     {
         $lock = Cache::lock($this->getLockKey($user, $currency), 10);
 
         if (!$lock->get()) {
-            throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
+            throw new LockAcquisitionException("Unable to get lock for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
         }
 
         try {
-            return DB::transaction(function () use ($user, $currency, $amount, $clientTxId, $lock) {
+            return DB::transaction(function () use ($user, $currency, $amount, $lock) {
                 $wallet = $user->wallets()->firstOrCreate([
                     'currency_id' => $currency->id,
                     'is_technical' => false,
@@ -76,9 +75,9 @@ class WalletService
                 $wallet->balance += $amount;
                 $wallet->save();
 
-                $techWallet = $this->updateTechnicalWallet($currency, $amount, $clientTxId);
+                $techWallet = $this->updateTechnicalWallet($currency, $amount);
 
-                $this->recordTransaction($wallet, $techWallet, $amount, $clientTxId);
+                $this->recordTransaction($wallet, $techWallet, $amount);
 
                 Cache::forget($this->getCacheKey($user, $currency));
 
@@ -94,23 +93,22 @@ class WalletService
      * @param User $toUser
      * @param Currency $currency
      * @param int $amount
-     * @param string $clientTxId
      * @return void
      * @throws LockAcquisitionException
      */
-    public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount, string $clientTxId): void
+    public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount): void
     {
         $fromLock = Cache::lock($this->getLockKey($fromUser, $currency), 10);
         $toLock = Cache::lock($this->getLockKey($toUser, $currency), 10);
 
         if (!$fromLock->get() || !$toLock->get()) {
-            throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
+            throw new LockAcquisitionException("Unable to get lock for transaction}");
         }
         
         try {
-            DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
-                $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
-                $this->updateBalance($toUser, $currency, $amount, $clientTxId);
+            DB::transaction(function () use ($fromUser, $toUser, $currency, $amount) {
+                $this->updateBalance($fromUser, $currency, -$amount);
+                $this->updateBalance($toUser, $currency, $amount);
             });
         } finally {
             $fromLock->release();
@@ -142,26 +140,23 @@ class WalletService
      * @param Wallet $techWalletDebit
      * @param Wallet $techWalletCredit
      * @param int $amount
-     * @param string $clientTxId
      * @return void
      */
-    protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, int $amount, string $clientTxId): void
+    protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, int $amount): void
     {
         Transaction::create([
             'from_wallet_id' => $techWalletDebit->id,
             'to_wallet_id' => $techWalletCredit->id,
             'amount' => $amount,
-            'client_tx_id' => $clientTxId,
         ]);
     }
 
     /**
      * @param Currency $currency
      * @param int $amount
-     * @param string $clientTxId
      * @return Wallet
      */
-    private function updateTechnicalWallet(Currency $currency, int $amount, string $clientTxId): Wallet
+    private function updateTechnicalWallet(Currency $currency, int $amount): Wallet
     {
         $techWalletType = $amount >= 0 ? 'credit' : 'debit';
         $techWallet = Wallet::findOrCreateTechnicalWallet($currency->id, $techWalletType);
