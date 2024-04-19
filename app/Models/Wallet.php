@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\WalletType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +19,6 @@ use Illuminate\Support\Carbon;
  * @property int $currency_id
  * @property int $balance
  * @property boolean $is_technical
- * @property string $wallet_type
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  *
@@ -38,11 +36,6 @@ class Wallet extends Model
         'currency_id',
         'balance',
         'is_technical',
-        'wallet_type',
-    ];
-
-    public $casts = [
-        'wallet_type' => WalletType::class,
     ];
 
     /**
@@ -71,17 +64,15 @@ class Wallet extends Model
     }
 
     /**
-     * @param int $currencyId
-     * @param string $type
+     * @param Currency $currency
      * @return Wallet
      */
-    public static function findOrCreateTechnicalWallet(int $currencyId, string $type): Wallet
+    public static function findOrCreateTechnicalWallet(Currency $currency): Wallet
     {
         return static::firstOrCreate([
             'user_id' => User::getTechnicalUser()->id,
-            'currency_id' => $currencyId,
+            'currency_id' => $currency->id,
             'is_technical' => true,
-            'wallet_type' => $type
         ], [
             'balance' => 0,
         ]);

@@ -65,7 +65,7 @@ class WalletService
             DB::transaction(function () use ($user, $currency, $amount, $direction) {
                 $userWallet = $user->getWalletByCurrency($currency);
 
-                $techWallet = Wallet::findOrCreateTechnicalWallet($currency->id, $direction->toWalletType());
+                $techWallet = Wallet::findOrCreateTechnicalWallet($currency);
 
                 if ($direction === OperationDirection::DEPOSIT) {
                     $this->doTransfer($techWallet, $userWallet, $amount);
