@@ -6,6 +6,8 @@ namespace Tests\Unit;
 
 use App\DTO\WalletBalanceDTO;
 use App\Exceptions\InsufficientFundsException;
+use App\Exceptions\LockAcquisitionException;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 use App\Services\WalletService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -177,5 +179,27 @@ class WalletServiceTest extends TestCase
         ]);
 
         $this->walletService->transfer($fromUser, $toUser, $currency, 50, 'tx127');
+    }
+
+    public function testUpdateBalanceThrowsLockAcquisitionException()
+    {
+        $user = User::factory()->create();
+        $currency = Currency::factory()->create();
+        $clientTxId = 'TX123';
+
+        Cache::shouldReceive('lock')
+            ->with("updateBalance:$clientTxId", 10)
+            ->andReturnSelf()
+            ->once();
+
+        Cache::shouldReceive('get')
+            ->andReturnFalse()
+            ->once();
+
+        $walletService = new WalletService();
+
+        $this->expectException(LockAcquisitionException::class);
+
+        $walletService->updateBalance($user, $currency, 100, $clientTxId);
     }
 }
