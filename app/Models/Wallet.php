@@ -56,7 +56,7 @@ class Wallet extends Model
 
     public static function findOrCreateTechnicalWallet(int $currencyId, string $type)
     {
-        return static::lockForUpdate()->firstOrCreate([
+        return static::firstOrCreate([
             'user_id' => User::getTechnicalUser()->id,
             'currency_id' => $currencyId,
             'is_technical' => true,
