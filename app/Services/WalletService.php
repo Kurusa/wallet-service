@@ -133,8 +133,6 @@ class WalletService
                     $this->doTransfer($fromWallet, $toWallet, $amount);
                 }
 
-                $this->recordTransaction($fromWallet, $toWallet, $amount);
-
                 Cache::forget($this->getCacheKey($fromWallet->user, $currency));
                 Cache::forget($this->getCacheKey($toWallet->user, $currency));
             });
