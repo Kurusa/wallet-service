@@ -34,11 +34,17 @@ class Transaction extends Model
         'client_tx_id',
     ];
 
+    /**
+     * @return BelongsTo
+     */
     public function fromWallet(): BelongsTo
     {
         return $this->belongsTo(Wallet::class, 'from_wallet_id');
     }
 
+    /**
+     * @return BelongsTo
+     */
     public function toWallet(): BelongsTo
     {
         return $this->belongsTo(Wallet::class, 'to_wallet_id');

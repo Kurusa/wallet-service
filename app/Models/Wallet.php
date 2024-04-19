@@ -40,22 +40,36 @@ class Wallet extends Model
         'wallet_type',
     ];
 
+    /**
+     * @return BelongsTo
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo
+     */
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class);
     }
 
+    /**
+     * @return HasMany
+     */
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'from_wallet_id')
             ->orWhere('to_wallet_id', $this->id);
     }
 
+    /**
+     * @param int $currencyId
+     * @param string $type
+     * @return Wallet
+     */
     public static function findOrCreateTechnicalWallet(int $currencyId, string $type): Wallet
     {
         return static::firstOrCreate([

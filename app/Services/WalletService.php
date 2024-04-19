@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Currency;
 use App\Models\Wallet;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
@@ -18,6 +19,11 @@ class WalletService
 {
     const DEFAULT_TTL = 60 * 60;
 
+    /**
+     * @param User $user
+     * @param Currency $currency
+     * @return int
+     */
     public function getBalance(User $user, Currency $currency): int
     {
         $cacheKey = $this->getCacheKey($user, $currency);
@@ -26,13 +32,25 @@ class WalletService
         });
     }
 
-    public function getAllBalances(User $user)
+    /**
+     * @param User $user
+     * @return Collection
+     */
+    public function getAllBalances(User $user): Collection
     {
         return $user->wallets()->with('currency')->get()->map(function (Wallet $wallet) {
             return new WalletBalanceDTO($wallet->currency->code, $wallet->balance);
         });
     }
 
+    /**
+     * @param User $user
+     * @param Currency $currency
+     * @param int $amount
+     * @param string $clientTxId
+     * @return Wallet
+     * @throws LockAcquisitionException
+     */
     public function updateBalance(User $user, Currency $currency, int $amount, string $clientTxId): Wallet
     {
         $lock = Cache::lock('updateBalance:' . $clientTxId, 10);
@@ -66,6 +84,15 @@ class WalletService
         }
     }
 
+    /**
+     * @param User $fromUser
+     * @param User $toUser
+     * @param Currency $currency
+     * @param int $amount
+     * @param string $clientTxId
+     * @return void
+     * @throws LockAcquisitionException
+     */
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount, string $clientTxId): void
     {
         $lock = Cache::lock('transfer:' . $clientTxId, 10);
@@ -92,11 +119,23 @@ class WalletService
         }
     }
 
+    /**
+     * @param User $user
+     * @param Currency $currency
+     * @return string
+     */
     public function getCacheKey(User $user, Currency $currency): string
     {
         return "balance:user_{$user->id}:currency_{$currency->id}";
     }
 
+    /**
+     * @param Wallet $techWalletDebit
+     * @param Wallet $techWalletCredit
+     * @param int $amount
+     * @param string $clientTxId
+     * @return void
+     */
     protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, int $amount, string $clientTxId): void
     {
         Transaction::create([

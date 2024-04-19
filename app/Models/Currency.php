@@ -31,6 +31,9 @@ class Currency extends Model
         'name',
     ];
 
+    /**
+     * @return HasMany
+     */
     public function wallets(): HasMany
     {
         return $this->hasMany(Wallet::class);
