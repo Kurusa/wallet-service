@@ -12,6 +12,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Currency;
 use App\Models\Wallet;
+use Illuminate\Cache\Lock;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -117,6 +118,7 @@ class WalletService
             Cache::lock($this->getLockKey($toWallet->user, $currency), self::DEFAULT_LOCK_TTL_SECONDS),
         ];
 
+        /** @var Lock $lock */
         foreach ($locks as $lock) {
             if (!$lock->get()) {
                 throw new LockAcquisitionException("Unable to acquire lock");
