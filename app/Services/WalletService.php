@@ -12,11 +12,13 @@ use Illuminate\Support\Facades\Cache;
 
 class WalletService
 {
+    const DEFAULT_TTL = 60 * 60;
+
     public function getBalance(User $user, Currency $currency): float
     {
         $cacheKey = $this->getCacheKey($user, $currency);
 
-        return Cache::remember($cacheKey, 3600, function () use ($user, $currency) {
+        return Cache::remember($cacheKey, self::DEFAULT_TTL, function () use ($user, $currency) {
             return $user->wallets()->where('currency_id', $currency->id)->first()->balance ?? 0;
         });
     }
