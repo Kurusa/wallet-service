@@ -15,6 +15,8 @@ class Wallet extends Model
         'user_id',
         'currency_id',
         'balance',
+        'is_technical',
+        'wallet_type',
     ];
 
     public function user(): BelongsTo
@@ -31,5 +33,17 @@ class Wallet extends Model
     {
         return $this->hasMany(Transaction::class, 'from_wallet_id')
             ->orWhere('to_wallet_id', $this->id);
+    }
+
+    public static function findOrCreateTechnicalWallet(int $currencyId, string $type)
+    {
+        return static::lockForUpdate()->firstOrCreate([
+            'user_id' => User::getTechnicalUser()->id,
+            'currency_id' => $currencyId,
+            'is_technical' => true,
+            'wallet_type' => $type
+        ], [
+            'balance' => 0,
+        ]);
     }
 }
