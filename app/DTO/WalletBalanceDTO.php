@@ -10,7 +10,7 @@ class WalletBalanceDTO
 
     public int $balance;
 
-    public function __construct(string $currencyCode, int $balance)
+    public function __construct(public string $currencyCode, public int $balance)
     {
         $this->currencyCode = $currencyCode;
         $this->balance = $balance;
