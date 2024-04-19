@@ -13,9 +13,11 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('currency_id')->constrained();
             $table->decimal('balance', 15);
+            $table->boolean('is_technical')->default(false);
+            $table->string('wallet_type')->default('normal');
             $table->timestamps();
 
-            $table->unique(['user_id', 'currency_id']);
+            $table->unique(['user_id', 'currency_id', 'wallet_type', 'is_technical']);
         });
     }
 
