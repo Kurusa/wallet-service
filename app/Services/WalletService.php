@@ -76,6 +76,10 @@ class WalletService
                 $wallet->balance += $amount;
                 $wallet->save();
 
+                $techWallet = $this->updateTechnicalWallet($currency, $amount, $clientTxId);
+
+                $this->recordTransaction($wallet, $techWallet, $amount, $clientTxId);
+
                 Cache::forget($this->getCacheKey($user, $currency));
 
                 return $wallet;
@@ -107,14 +111,6 @@ class WalletService
             DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
                 $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
                 $this->updateBalance($toUser, $currency, $amount, $clientTxId);
-
-                $techWalletDebit = Wallet::findOrCreateTechnicalWallet($currency->id, 'debit');
-                $techWalletCredit = Wallet::findOrCreateTechnicalWallet($currency->id, 'credit');
-
-                $this->updateBalance($techWalletDebit->user, $currency, $amount, $clientTxId);
-                $this->updateBalance($techWalletCredit->user, $currency, -$amount, $clientTxId);
-
-                $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
             });
         } finally {
             $fromLock->release();
@@ -157,5 +153,21 @@ class WalletService
             'amount' => $amount,
             'client_tx_id' => $clientTxId,
         ]);
+    }
+
+    /**
+     * @param Currency $currency
+     * @param int $amount
+     * @param string $clientTxId
+     * @return Wallet
+     */
+    private function updateTechnicalWallet(Currency $currency, int $amount, string $clientTxId): Wallet
+    {
+        $techWalletType = $amount >= 0 ? 'credit' : 'debit';
+        $techWallet = Wallet::findOrCreateTechnicalWallet($currency->id, $techWalletType);
+        $techWallet->balance -= $amount;
+        $techWallet->save();
+
+        return $techWallet;
     }
 }
