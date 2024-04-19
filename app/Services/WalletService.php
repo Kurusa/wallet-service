@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\DTO\WalletBalanceDTO;
 use App\Exceptions\InsufficientFundsException;
+use App\Exceptions\LockAcquisitionException;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Currency;
@@ -17,7 +18,7 @@ class WalletService
 {
     const DEFAULT_TTL = 60 * 60;
 
-    public function getBalance(User $user, Currency $currency): float
+    public function getBalance(User $user, Currency $currency): int
     {
         $cacheKey = $this->getCacheKey($user, $currency);
         return Cache::remember($cacheKey, self::DEFAULT_TTL, function () use ($user, $currency) {
@@ -61,7 +62,7 @@ class WalletService
                 $lock->release();
             }
         } else {
-            throw new \Exception("Unable to get lock for transaction: {$clientTxId}");
+            throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
         }
     }
 
@@ -87,7 +88,7 @@ class WalletService
                 $lock->release();
             }
         } else {
-            throw new \Exception("Unable to acquire lock for transaction: {$clientTxId}");
+            throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
         }
     }
 
