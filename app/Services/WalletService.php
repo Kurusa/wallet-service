@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\DTO\WalletBalanceDTO;
 use App\Exceptions\InsufficientFundsException;
 use App\Models\Transaction;
 use App\Models\User;
@@ -26,7 +27,7 @@ class WalletService
     public function getAllBalances(User $user)
     {
         return $user->wallets()->with('currency')->get()->mapWithKeys(function (Wallet $wallet) {
-            return [$wallet->currency->code => $wallet->balance];
+            return new WalletBalanceDTO($wallet->currency->code, $wallet->balance);
         });
     }
 
