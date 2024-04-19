@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Cache;
 
 class WalletService
 {
-    const DEFAULT_TTL = 60 * 60;
+    const DEFAULT_TTL_SECONDS = 60 * 60; // 1 hour
 
     /**
      * @param User $user
