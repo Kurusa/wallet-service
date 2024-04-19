@@ -56,32 +56,32 @@ class WalletService
     {
         $lock = Cache::lock($this->getLockKey($user, $currency), 10);
 
-        if ($lock->get()) {
-            try {
-                return DB::transaction(function () use ($user, $currency, $amount, $clientTxId, $lock) {
-                    $wallet = $user->wallets()->firstOrCreate([
-                        'currency_id' => $currency->id,
-                        'is_technical' => false,
-                    ], [
-                        'balance' => 0
-                    ]);
-
-                    if ($wallet->balance + $amount < 0) {
-                        throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
-                    }
-
-                    $wallet->balance += $amount;
-                    $wallet->save();
-
-                    Cache::forget($this->getCacheKey($user, $currency));
-
-                    return $wallet;
-                });
-            } finally {
-                $lock->release();
-            }
-        } else {
+        if (!$lock->get()) {
             throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
+        }
+
+        try {
+            return DB::transaction(function () use ($user, $currency, $amount, $clientTxId, $lock) {
+                $wallet = $user->wallets()->firstOrCreate([
+                    'currency_id' => $currency->id,
+                    'is_technical' => false,
+                ], [
+                    'balance' => 0
+                ]);
+
+                if ($wallet->balance + $amount < 0) {
+                    throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
+                }
+
+                $wallet->balance += $amount;
+                $wallet->save();
+
+                Cache::forget($this->getCacheKey($user, $currency));
+
+                return $wallet;
+            });
+        } finally {
+            $lock->release();
         }
     }
 
@@ -99,26 +99,26 @@ class WalletService
         $fromLock = Cache::lock($this->getLockKey($fromUser, $currency), 10);
         $toLock = Cache::lock($this->getLockKey($toUser, $currency), 10);
 
-        if ($fromLock->get() && $toLock->get()) {
-            try {
-                DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
-                    $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
-                    $this->updateBalance($toUser, $currency, $amount, $clientTxId);
-
-                    $techWalletDebit = Wallet::findOrCreateTechnicalWallet($currency->id, 'debit');
-                    $techWalletCredit = Wallet::findOrCreateTechnicalWallet($currency->id, 'credit');
-
-                    $this->updateBalance($techWalletDebit->user, $currency, $amount, $clientTxId);
-                    $this->updateBalance($techWalletCredit->user, $currency, -$amount, $clientTxId);
-
-                    $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
-                });
-            } finally {
-                $fromLock->release();
-                $toLock->release();
-            }
-        } else {
+        if (!$fromLock->get() || !$toLock->get()) {
             throw new LockAcquisitionException("Unable to get lock for transaction: {$clientTxId}");
+        }
+        
+        try {
+            DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
+                $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
+                $this->updateBalance($toUser, $currency, $amount, $clientTxId);
+
+                $techWalletDebit = Wallet::findOrCreateTechnicalWallet($currency->id, 'debit');
+                $techWalletCredit = Wallet::findOrCreateTechnicalWallet($currency->id, 'credit');
+
+                $this->updateBalance($techWalletDebit->user, $currency, $amount, $clientTxId);
+                $this->updateBalance($techWalletCredit->user, $currency, -$amount, $clientTxId);
+
+                $this->recordTransaction($techWalletDebit, $techWalletCredit, $amount, $clientTxId);
+            });
+        } finally {
+            $fromLock->release();
+            $toLock->release();
         }
     }
 
