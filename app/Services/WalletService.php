@@ -17,7 +17,7 @@ class WalletService
         $cacheKey = $this->getCacheKey($user, $currency);
 
         return Cache::remember($cacheKey, 3600, function () use ($user, $currency) {
-            return $user->wallets()->where('currency_id', $currency->id)->first()->balance ?? 0;
+            return $user->wallets()->where('currency_id', $currency->id)->first()?->balance ?? 0;
         });
     }
 
