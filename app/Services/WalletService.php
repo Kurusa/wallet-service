@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DTO\WalletBalanceDTO;
+use App\Enums\OperationDirection;
 use App\Exceptions\InsufficientFundsException;
 use App\Exceptions\LockAcquisitionException;
 use App\Models\Transaction;
@@ -48,10 +49,11 @@ class WalletService
      * @param User $user
      * @param Currency $currency
      * @param int $amount
-     * @return Wallet
+     * @param OperationDirection $direction
+     * @return void
      * @throws LockAcquisitionException
      */
-    public function updateBalance(User $user, Currency $currency, int $amount): Wallet
+    public function updateBalance(User $user, Currency $currency, int $amount, OperationDirection $direction): void
     {
         $lock = Cache::lock($this->getLockKey($user, $currency), 10);
 
@@ -60,28 +62,18 @@ class WalletService
         }
 
         try {
-            return DB::transaction(function () use ($user, $currency, $amount, $lock) {
-                $wallet = $user->wallets()->firstOrCreate([
-                    'currency_id' => $currency->id,
-                    'is_technical' => false,
-                ], [
-                    'balance' => 0
-                ]);
+            DB::transaction(function () use ($user, $currency, $amount, $direction) {
+                $userWallet = $user->getWalletByCurrency($currency);
 
-                if ($wallet->balance + $amount < 0) {
-                    throw new InsufficientFundsException("Insufficient funds for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
+                $techWallet = Wallet::findOrCreateTechnicalWallet($currency->id, $direction->toWalletType());
+
+                if ($direction === OperationDirection::DEPOSIT) {
+                    $this->doTransfer($techWallet, $userWallet, $amount);
+                } else {
+                    $this->doTransfer($userWallet, $techWallet, $amount);
                 }
 
-                $wallet->balance += $amount;
-                $wallet->save();
-
-                $techWallet = $this->updateTechnicalWallet($currency, $amount);
-
-                $this->recordTransaction($wallet, $techWallet, $amount);
-
                 Cache::forget($this->getCacheKey($user, $currency));
-
-                return $wallet;
             });
         } finally {
             $lock->release();
@@ -102,13 +94,15 @@ class WalletService
         $toLock = Cache::lock($this->getLockKey($toUser, $currency), 10);
 
         if (!$fromLock->get() || !$toLock->get()) {
-            throw new LockAcquisitionException("Unable to get lock for transaction}");
+            throw new LockAcquisitionException("Unable to get lock for transaction");
         }
         
         try {
             DB::transaction(function () use ($fromUser, $toUser, $currency, $amount) {
-                $this->updateBalance($fromUser, $currency, -$amount);
-                $this->updateBalance($toUser, $currency, $amount);
+                $fromWallet = $fromUser->getWalletByCurrency($currency);
+                $toWallet = $toUser->getWalletByCurrency($currency);
+
+                $this->doTransfer($fromWallet, $toWallet, $amount);
             });
         } finally {
             $fromLock->release();
@@ -137,32 +131,41 @@ class WalletService
     }
 
     /**
-     * @param Wallet $techWalletDebit
-     * @param Wallet $techWalletCredit
+     * @param Wallet $fromWallet
+     * @param Wallet $toWallet
      * @param int $amount
      * @return void
+     * @throws InsufficientFundsException
      */
-    protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, int $amount): void
+    private function doTransfer(Wallet $fromWallet, Wallet $toWallet, int $amount): void
     {
-        Transaction::create([
-            'from_wallet_id' => $techWalletDebit->id,
-            'to_wallet_id' => $techWalletCredit->id,
-            'amount' => $amount,
-        ]);
+        if (!$fromWallet->is_technical) {
+            if ($fromWallet->balance + $amount < 0) {
+                throw new InsufficientFundsException("Insufficient funds for user id: {$fromWallet->user->id}, currency: {$fromWallet->currency->code}, amount requested: {$amount}");
+            }
+        }
+
+        $fromWallet->balance -= $amount;
+        $toWallet->balance += $amount;
+
+        $fromWallet->save();
+        $toWallet->save();
+
+        $this->recordTransaction($fromWallet, $toWallet, $amount);
     }
 
     /**
-     * @param Currency $currency
+     * @param Wallet $fromWallet
+     * @param Wallet $toWallet
      * @param int $amount
-     * @return Wallet
+     * @return void
      */
-    private function updateTechnicalWallet(Currency $currency, int $amount): Wallet
+    protected function recordTransaction(Wallet $fromWallet, Wallet $toWallet, int $amount): void
     {
-        $techWalletType = $amount >= 0 ? 'credit' : 'debit';
-        $techWallet = Wallet::findOrCreateTechnicalWallet($currency->id, $techWalletType);
-        $techWallet->balance -= $amount;
-        $techWallet->save();
-
-        return $techWallet;
+        Transaction::create([
+            'from_wallet_id' => $fromWallet->id,
+            'to_wallet_id' => $toWallet->id,
+            'amount' => $amount,
+        ]);
     }
 }

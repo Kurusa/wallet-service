@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\WalletType;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,10 @@ class Wallet extends Model
         'balance',
         'is_technical',
         'wallet_type',
+    ];
+
+    public $casts = [
+        'wallet_type' => WalletType::class,
     ];
 
     /**

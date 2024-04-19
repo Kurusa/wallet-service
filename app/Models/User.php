@@ -52,4 +52,18 @@ class User extends Authenticatable
             'password' => bcrypt('password'),
         ]);
     }
+
+    /**
+     * @param Currency $currency
+     * @return Wallet
+     */
+    public function getWalletByCurrency(Currency $currency): Wallet
+    {
+        return $this->wallets()->firstOrCreate([
+            'currency_id' => $currency->id,
+            'is_technical' => false,
+        ], [
+            'balance' => 0,
+        ]);
+    }
 }
