@@ -41,7 +41,7 @@ class WalletService
                 'balance' => 0
             ]);
 
-            if ($amount < 0 && $wallet->balance < abs($amount)) {
+            if ($wallet->balance + $amount < 0) {
                 throw new InsufficientFundsException("Insufficient funds");
             }
 
