@@ -31,7 +31,7 @@ class WalletService
         });
     }
 
-    public function updateBalance(User $user, Currency $currency, $amount, $clientTxId): Wallet
+    public function updateBalance(User $user, Currency $currency, int $amount, string $clientTxId): Wallet
     {
         return DB::transaction(function () use ($user, $currency, $amount, $clientTxId) {
             $wallet = $user->wallets()->lockForUpdate()->firstOrCreate([
@@ -54,7 +54,7 @@ class WalletService
         });
     }
 
-    public function transfer(User $fromUser, User $toUser, Currency $currency, $amount, $clientTxId): void
+    public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount, string $clientTxId): void
     {
         DB::transaction(function () use ($fromUser, $toUser, $currency, $amount, $clientTxId) {
             $this->updateBalance($fromUser, $currency, -$amount, $clientTxId);
@@ -75,7 +75,7 @@ class WalletService
         return "balance:user_{$user->id}:currency_{$currency->id}";
     }
 
-    protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, $amount, string $clientTxId): void
+    protected function recordTransaction(Wallet $techWalletDebit, Wallet $techWalletCredit, int $amount, string $clientTxId): void
     {
         Transaction::create([
             'from_wallet_id' => $techWalletDebit->id,

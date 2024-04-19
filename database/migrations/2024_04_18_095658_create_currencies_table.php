@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('currencies', function (Blueprint $table) {
-            $table->id();
-            $table->string('code');
+            $table->increments('id');
+            $table->string('code')->unique();
             $table->string('name');
             $table->timestamps();
         });
