@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $from_wallet_id
  * @property int $to_wallet_id
- * @property float $amount
+ * @property int $amount
  * @property string $client_tx_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
