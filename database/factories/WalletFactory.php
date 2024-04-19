@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Currency;
@@ -11,7 +13,7 @@ class WalletFactory extends Factory
 {
     protected $model = Wallet::class;
 
-    public function definition()
+    public function definition(): array
     {
         return [
             'user_id' => User::factory(),

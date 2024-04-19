@@ -27,6 +27,7 @@ class WalletService
     public function getBalance(User $user, Currency $currency): int
     {
         $cacheKey = $this->getCacheKey($user, $currency);
+
         return Cache::remember($cacheKey, self::DEFAULT_TTL, function () use ($user, $currency) {
             return $user->wallets()->where('currency_id', $currency->id)->first()?->balance ?? 0;
         });

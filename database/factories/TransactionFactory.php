@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Transaction;
@@ -10,7 +12,7 @@ class TransactionFactory extends Factory
 {
     protected $model = Transaction::class;
 
-    public function definition()
+    public function definition(): array
     {
         return [
             'from_wallet_id' => Wallet::factory(),
