@@ -32,17 +32,11 @@ class User extends Authenticatable
         'password',
     ];
 
-    /**
-     * @return HasMany
-     */
     public function wallets(): HasMany
     {
         return $this->hasMany(Wallet::class);
     }
 
-    /**
-     * @return User
-     */
     public static function getTechnicalUser(): User
     {
         return static::firstOrCreate([
