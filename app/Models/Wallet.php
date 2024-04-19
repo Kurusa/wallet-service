@@ -38,25 +38,16 @@ class Wallet extends Model
         'is_technical',
     ];
 
-    /**
-     * @return BelongsTo
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * @return BelongsTo
-     */
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class);
     }
 
-    /**
-     * @return HasMany
-     */
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'from_wallet_id')
