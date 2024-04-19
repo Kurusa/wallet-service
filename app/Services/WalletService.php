@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Cache;
 
 class WalletService
 {
-    const DEFAULT_TTL_SECONDS = 60 * 60; // 1 hour
+    const DEFAULT_CACHE_TTL_SECONDS = 60 * 60; // 1 hour
+    const DEFAULT_LOCK_TTL_SECONDS = 10;
 
     /**
      * @param User $user
@@ -29,14 +30,14 @@ class WalletService
     {
         $cacheKey = $this->getCacheKey($user, $currency);
 
-        return Cache::remember($cacheKey, self::DEFAULT_TTL, function () use ($user, $currency) {
-            return $user->wallets()->where('currency_id', $currency->id)->first()?->balance ?? 0;
+        return Cache::remember($cacheKey, self::DEFAULT_CACHE_TTL_SECONDS, function () use ($user, $currency) {
+            return $user->getWalletByCurrency($currency)->balance;
         });
     }
 
     /**
      * @param User $user
-     * @return Collection
+     * @return Collection<WalletBalanceDTO>
      */
     public function getAllBalances(User $user): Collection
     {
@@ -55,7 +56,7 @@ class WalletService
      */
     public function updateBalance(User $user, Currency $currency, int $amount, OperationDirection $direction): void
     {
-        $lock = Cache::lock($this->getLockKey($user, $currency), 10);
+        $lock = Cache::lock($this->getLockKey($user, $currency), self::DEFAULT_LOCK_TTL_SECONDS);
 
         if (!$lock->get()) {
             throw new LockAcquisitionException("Unable to get lock for user id: {$user->id}, currency: {$currency->code}, amount requested: {$amount}");
@@ -90,13 +91,13 @@ class WalletService
      */
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount): void
     {
-        $fromLock = Cache::lock($this->getLockKey($fromUser, $currency), 10);
-        $toLock = Cache::lock($this->getLockKey($toUser, $currency), 10);
+        $fromLock = Cache::lock($this->getLockKey($fromUser, $currency), self::DEFAULT_LOCK_TTL_SECONDS);
+        $toLock = Cache::lock($this->getLockKey($toUser, $currency), self::DEFAULT_LOCK_TTL_SECONDS);
 
         if (!$fromLock->get() || !$toLock->get()) {
             throw new LockAcquisitionException("Unable to get lock for transaction");
         }
-        
+
         try {
             DB::transaction(function () use ($fromUser, $toUser, $currency, $amount) {
                 $fromWallet = $fromUser->getWalletByCurrency($currency);
@@ -115,7 +116,7 @@ class WalletService
      * @param Currency $currency
      * @return string
      */
-    public function getCacheKey(User $user, Currency $currency): string
+    private function getCacheKey(User $user, Currency $currency): string
     {
         return "balance:user_{$user->id}:currency_{$currency->id}";
     }
@@ -125,7 +126,7 @@ class WalletService
      * @param Currency $currency
      * @return string
      */
-    public function getLockKey(User $user, Currency $currency): string
+    private function getLockKey(User $user, Currency $currency): string
     {
         return "walletLock:user_{$user->id}:currency_{$currency->id}";
     }
@@ -139,10 +140,8 @@ class WalletService
      */
     private function doTransfer(Wallet $fromWallet, Wallet $toWallet, int $amount): void
     {
-        if (!$fromWallet->is_technical) {
-            if ($fromWallet->balance + $amount < 0) {
-                throw new InsufficientFundsException("Insufficient funds for user id: {$fromWallet->user->id}, currency: {$fromWallet->currency->code}, amount requested: {$amount}");
-            }
+        if (!$fromWallet->is_technical && ($fromWallet->balance + $amount < 0)) {
+            throw new InsufficientFundsException("Insufficient funds for user id: {$fromWallet->user->id}, currency: {$fromWallet->currency->code}, amount requested: {$amount}");
         }
 
         $fromWallet->balance -= $amount;

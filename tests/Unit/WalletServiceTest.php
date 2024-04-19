@@ -47,7 +47,7 @@ class WalletServiceTest extends TestCase
     {
         Cache::shouldReceive('remember')
             ->once()
-            ->with("balance:user_{$this->user->id}:currency_{$this->currency->id}", WalletService::DEFAULT_TTL, Mockery::any())
+            ->with("balance:user_{$this->user->id}:currency_{$this->currency->id}", WalletService::DEFAULT_CACHE_TTL_SECONDS, Mockery::any())
             ->andReturn(1000);
 
         $balance = $this->walletService->getBalance($this->user, $this->currency);
