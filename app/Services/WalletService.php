@@ -8,6 +8,7 @@ use App\DTO\WalletBalanceDTO;
 use App\Enums\OperationDirection;
 use App\Exceptions\InsufficientFundsException;
 use App\Exceptions\LockAcquisitionException;
+use App\Exceptions\ValidationException;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Currency;
@@ -107,6 +108,10 @@ class WalletService
      */
     private function executeTransaction(User $fromUser, Wallet $toWallet, Currency $currency, int $amount, OperationDirection $direction): void
     {
+        if ($amount < 0) {
+            throw new ValidationException("Transaction amounts must be non-negative.");
+        }
+
         $fromWallet = $fromUser->getWalletByCurrency($currency);
 
         if (!$fromWallet->is_technical && ($fromWallet->balance + $amount < 0)) {

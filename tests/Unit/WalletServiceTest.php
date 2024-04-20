@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\DTO\WalletBalanceDTO;
 use App\Enums\OperationDirection;
+use App\Exceptions\ValidationException;
 use App\Models\User;
 use App\Models\Currency;
 use App\Models\Wallet;
@@ -54,14 +55,12 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(1000, $balance);
     }
 
-    public function testUpdateBalanceInsufficientFundsExactZero()
+    public function testRejectNegativeTransactionAmounts()
     {
-        $this->wallet->balance = 0;
-        $this->wallet->save();
+        $this->expectException(ValidationException::class);
 
-        $this->expectException(InsufficientFundsException::class);
-
-        $this->walletService->updateBalance($this->user, $this->currency, -1, OperationDirection::WITHDRAWAL);
+        $this->walletService->updateBalance($this->user, $this->currency, -100, OperationDirection::DEPOSIT);
+        $this->walletService->updateBalance($this->user, $this->currency, -200, OperationDirection::WITHDRAWAL);
     }
 
     public function testConcurrentUpdateCausesLockTimeout()
