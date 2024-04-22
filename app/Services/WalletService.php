@@ -56,6 +56,7 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
+     * @throws ValidationException
      */
     public function updateBalance(User $user, Currency $currency, int $amount, OperationDirection $direction): void
     {
@@ -70,6 +71,7 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
+     * @throws ValidationException
      */
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount): void
     {
@@ -105,6 +107,7 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
+     * @throws ValidationException
      */
     private function executeTransaction(User $fromUser, Wallet $toWallet, Currency $currency, int $amount, OperationDirection $direction): void
     {
