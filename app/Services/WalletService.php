@@ -134,16 +134,14 @@ class WalletService
         }
 
         try {
-            DB::transaction(function () use ($fromWallet, $toWallet, $amount, $direction, $currency) {
-                if ($direction === OperationDirection::WITHDRAWAL) {
-                    $this->doTransfer($fromWallet, $toWallet, -$amount);
-                } else {
-                    $this->doTransfer($fromWallet, $toWallet, $amount);
-                }
+            if ($direction === OperationDirection::WITHDRAWAL) {
+                $this->doTransfer($fromWallet, $toWallet, -$amount);
+            } else {
+                $this->doTransfer($fromWallet, $toWallet, $amount);
+            }
 
-                Cache::forget($this->getCacheKey($fromWallet->user, $currency));
-                Cache::forget($this->getCacheKey($toWallet->user, $currency));
-            });
+            Cache::forget($this->getCacheKey($fromWallet->user, $currency));
+            Cache::forget($this->getCacheKey($toWallet->user, $currency));
         } finally {
             foreach ($locks as $lock) {
                 $lock->release();
@@ -159,13 +157,15 @@ class WalletService
      */
     private function doTransfer(Wallet $fromWallet, Wallet $toWallet, int $amount): void
     {
-        $fromWallet->balance -= $amount;
-        $toWallet->balance += $amount;
+        DB::transaction(function () use ($fromWallet, $toWallet, $amount) {
+            $fromWallet->balance -= $amount;
+            $toWallet->balance += $amount;
 
-        $fromWallet->save();
-        $toWallet->save();
+            $fromWallet->save();
+            $toWallet->save();
 
-        $this->recordTransaction($fromWallet, $toWallet, $amount);
+            $this->recordTransaction($fromWallet, $toWallet, $amount);
+        });
     }
 
     /**
