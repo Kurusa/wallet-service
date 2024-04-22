@@ -8,7 +8,6 @@ use App\DTO\WalletBalanceDTO;
 use App\Enums\OperationDirection;
 use App\Exceptions\InsufficientFundsException;
 use App\Exceptions\LockAcquisitionException;
-use App\Exceptions\ValidationException;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Currency;
@@ -17,6 +16,7 @@ use Illuminate\Cache\Lock;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 class WalletService
 {
@@ -56,7 +56,7 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
-     * @throws ValidationException
+     * @throws InvalidArgumentException
      */
     public function updateBalance(User $user, Currency $currency, int $amount, OperationDirection $direction): void
     {
@@ -71,7 +71,7 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
-     * @throws ValidationException
+     * @throws InvalidArgumentException
      */
     public function transfer(User $fromUser, User $toUser, Currency $currency, int $amount): void
     {
@@ -107,12 +107,12 @@ class WalletService
      * @return void
      * @throws InsufficientFundsException
      * @throws LockAcquisitionException
-     * @throws ValidationException
+     * @throws InvalidArgumentException
      */
     private function executeTransaction(User $fromUser, Wallet $toWallet, Currency $currency, int $amount, OperationDirection $direction): void
     {
         if ($amount < 0) {
-            throw new ValidationException("Transaction amounts must be non-negative.");
+            throw new InvalidArgumentException("Transaction amounts must be non-negative.");
         }
 
         $fromWallet = $fromUser->getWalletByCurrency($currency);

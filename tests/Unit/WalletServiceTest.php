@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\DTO\WalletBalanceDTO;
 use App\Enums\OperationDirection;
-use App\Exceptions\ValidationException;
 use App\Models\User;
 use App\Models\Currency;
 use App\Models\Wallet;
 use App\Services\WalletService;
-use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use App\Exceptions\InsufficientFundsException;
 use App\Exceptions\LockAcquisitionException;
+use InvalidArgumentException;
 use Mockery;
 use Tests\TestCase;
 
@@ -57,7 +53,7 @@ class WalletServiceTest extends TestCase
 
     public function testRejectNegativeTransactionAmounts()
     {
-        $this->expectException(ValidationException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         $this->walletService->updateBalance($this->user, $this->currency, -100, OperationDirection::DEPOSIT);
         $this->walletService->updateBalance($this->user, $this->currency, -200, OperationDirection::WITHDRAWAL);
